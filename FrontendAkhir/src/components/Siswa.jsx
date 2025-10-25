@@ -1,95 +1,141 @@
 // ================== IMPORT LIBRARY ==================
-import { useState, useEffect } from "react"; // Hook bawaan React untuk state dan efek samping
-import axios from "axios"; // Library untuk melakukan HTTP request (GET, POST, PUT, DELETE)
-import "bootstrap/dist/css/bootstrap.min.css"; // Import CSS Bootstrap agar tampilan lebih rapi
-import { useParams, useNavigate } from "react-router-dom"; // Hook dari React Router untuk akses parameter URL dan navigasi halaman
+import { useState, useEffect } from "react"; // useState untuk state, useEffect untuk efek samping
+import axios from "axios"; // library untuk HTTP request (GET, POST, PUT, DELETE)
+import "bootstrap/dist/css/bootstrap.min.css"; // import CSS Bootstrap
+import { useParams, useNavigate } from "react-router-dom"; // useParams ambil parameter URL, useNavigate untuk pindah halaman
 
 // ================== KOMPONEN UTAMA ==================
 export default function SiswaForm() {
   // ================== STATE ==================
-  const [loading, setLoading] = useState(false); // Menandakan proses loading data dari server
-  const [siswa, setSiswa] = useState([]); // Menyimpan data siswa (tidak digunakan langsung di form, tapi bisa untuk referensi)
+  const [loading, setLoading] = useState(false); // state loading saat fetch data
+  const [siswa, setSiswa] = useState([]); // state untuk menyimpan data siswa, jika diperlukan
 
-  // State untuk menampung input dari form
-  const [kode_siswa, setKodeSiswa] = useState(""); // Input kode siswa
-  const [nama_siswa, setNamaSiswa] = useState(""); // Input nama siswa
-  const [alamat_siswa, setAlamatSiswa] = useState(""); // Input alamat siswa
-  const [tanggal_siswa, setTanggalSiswa] = useState(""); // Input tanggal siswa
-  const [jurusan_siswa, setJurusanSiswa] = useState(""); // Input jurusan siswa
+  // State untuk form input
+  const [kode_siswa, setKodeSiswa] = useState(""); // state untuk kode siswa
+  const [nama_siswa, setNamaSiswa] = useState(""); // state untuk nama siswa
+  const [alamat_siswa, setAlamatSiswa] = useState(""); // state untuk alamat siswa
+  const [tanggal_siswa, setTanggalSiswa] = useState(""); // state untuk tanggal siswa
+  const [jurusan_siswa, setJurusanSiswa] = useState(""); // state untuk jurusan siswa
 
-  const { kode_siswa: kodeUrl } = useParams(); // Ambil parameter kode_siswa dari URL (misal /siswa/123)
-  const navigate = useNavigate(); // Untuk berpindah halaman (navigasi programatik)
+  const { kode_siswa: kodeUrl } = useParams(); // ambil kode_siswa dari URL (untuk edit)
+  const navigate = useNavigate(); // fungsi untuk navigasi halaman
+
+  // ================== FUNGSI FORMAT TANGGAL ==================
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return ''; // jika tidak ada tanggal, return string kosong
+    
+    console.log("Original date from API:", dateString); // debug tanggal asli
+    
+    try {
+      const date = new Date(dateString); // coba parsing tanggal
+
+      if (isNaN(date.getTime())) {
+        // jika parsing gagal, coba format Indonesia DD-MM-YYYY
+        if (dateString.includes('-')) {
+          const parts = dateString.split('-');
+          if (parts.length === 3) {
+            const day = parts[0];
+            const month = parts[1];
+            const year = parts[2];
+            const newDate = new Date(year, month - 1, day);
+            if (!isNaN(newDate.getTime())) {
+              const formatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              console.log("Formatted from DD-MM-YYYY:", formatted);
+              return formatted; // return format YYYY-MM-DD
+            }
+          }
+        }
+        return ''; // jika gagal parsing, return string kosong
+      }
+
+      // format standar ke YYYY-MM-DD
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+
+      const formatted = `${year}-${month}-${day}`;
+      console.log("Formatted date:", formatted);
+      
+      return formatted;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
+    }
+  };
 
   // ================== USE EFFECT ==================
   useEffect(() => {
+    console.log("kodeUrl:", kodeUrl); // debug kode siswa dari URL
     if (kodeUrl) {
-      // Jika ada kode di URL → berarti mode EDIT
-      fetchSiswaByKode(); // Ambil data siswa dari server berdasarkan kode
+      fetchSiswaByKode(); // jika edit, fetch data siswa
     }
-    // Tidak perlu ambil semua siswa di sini
-  }, [kodeUrl]); // Efek dijalankan ulang setiap kali kodeUrl berubah
+  }, [kodeUrl]); // jalankan efek saat kodeUrl berubah
 
   // ================== FETCH SISWA BY KODE ==================
   const fetchSiswaByKode = async () => {
     try {
-      setLoading(true); // Aktifkan indikator loading
-      const res = await axios.get(
-        `http://localhost:3333/api/siswa/${kodeUrl}`
-      ); // Ambil data siswa tertentu dari backend
+      setLoading(true); // set loading true saat fetch
+      console.log("Fetching data for:", kodeUrl);
+
+      const res = await axios.get(`http://localhost:3333/api/siswa/${kodeUrl}`); // GET data siswa dari API
       const data = res.data;
 
-      // Isi form dengan data lama (untuk proses edit)
-      setKodeSiswa(data.kode_siswa);
-      setNamaSiswa(data.nama_siswa);
-      setAlamatSiswa(data.alamat_siswa);
-      setTanggalSiswa(data.tanggal_siswa);
-      setJurusanSiswa(data.jurusan_siswa);
-      setLoading(false);
+      console.log("Data received from API:", data);
+
+      // format tanggal sebelum set ke state
+      const formattedDate = formatDateForInput(data.tanggal_siswa);
+      console.log("Tanggal setelah format:", formattedDate);
+
+      // set state form dengan data dari API
+      setKodeSiswa(data.kode_siswa || "");
+      setNamaSiswa(data.nama_siswa || "");
+      setAlamatSiswa(data.alamat_siswa || "");
+      setTanggalSiswa(formattedDate);
+      setJurusanSiswa(data.jurusan_siswa || "");
+
+      setLoading(false); // set loading false setelah selesai
     } catch (err) {
       console.error("Gagal fetch siswa by kode:", err);
       setLoading(false);
-      alert("Gagal memuat data siswa");
+      alert("Gagal memuat data siswa"); // tampilkan alert jika error
     }
   };
 
   // ================== HANDLE SUBMIT ==================
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Mencegah reload halaman bawaan form
+    e.preventDefault(); // cegah reload halaman
 
-    // Kumpulkan semua data form ke dalam objek payload
     const payload = {
       kode_siswa,
       nama_siswa,
       alamat_siswa,
-      tanggal_siswa,
+      tanggal_siswa, // tetap dalam format YYYY-MM-DD
       jurusan_siswa,
     };
 
+    console.log("Payload yang dikirim:", payload);
+
     try {
       if (kodeUrl) {
-        // MODE EDIT → kirim PUT request
-        await axios.put(
-          `http://localhost:3333/api/siswa/${kodeUrl}`,
-          payload
-        );
+        // jika edit, pakai PUT
+        await axios.put(`http://localhost:3333/api/siswa/${kodeUrl}`, payload);
         alert("✅ Data siswa berhasil diubah");
       } else {
-        // MODE TAMBAH → kirim POST request
+        // jika tambah baru, pakai POST
         await axios.post("http://localhost:3333/api/siswa", payload);
         alert("✅ Data siswa berhasil ditambahkan");
 
-        // Reset form agar kosong lagi setelah data ditambah
+        // reset form setelah tambah
         setKodeSiswa("");
         setNamaSiswa("");
         setAlamatSiswa("");
         setTanggalSiswa("");
         setJurusanSiswa("");
       }
-
-      navigate("/DataSiswa"); // Arahkan ke halaman daftar siswa setelah submit
+      navigate("/DataSiswa"); // pindah ke halaman DataSiswa
     } catch (err) {
-      console.error("Gagal menyimpan data siswa:", err);
-      alert("❌ Gagal menyimpan data");
+      console.error("Gagal menyimpan data:", err);
+      alert("❌ Gagal menyimpan data"); // tampilkan alert jika gagal
     }
   };
 
@@ -97,15 +143,13 @@ export default function SiswaForm() {
   return (
     <div className="container mt-4">
       <div className="card shadow">
-        {/* HEADER - tampilkan judul berbeda tergantung mode */}
         <div className="card-header bg-primary text-white">
           <h4 className="mb-0">
-            {kodeUrl ? "✏️ Edit Data Siswa" : "➕ Tambah Data Siswa"}
+            {kodeUrl ? "✏️ Edit Data Siswa" : "➕ Tambah Data Siswa"} {/* judul dinamis */}
           </h4>
         </div>
 
         <div className="card-body">
-          {/* Jika loading tampilkan spinner, jika tidak tampilkan form */}
           {loading ? (
             <div className="text-center">
               <div className="spinner-border text-primary" role="status">
@@ -121,15 +165,11 @@ export default function SiswaForm() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Masukkan kode siswa"
-                  value={kode_siswa}
+                  value={kode_siswa} // dikontrol oleh state
                   onChange={(e) => setKodeSiswa(e.target.value)}
                   required
-                  disabled={!!kodeUrl} // Saat edit, input kode dinonaktifkan
+                  disabled={!!kodeUrl} // jika edit, kode tidak bisa diubah
                 />
-                <div className="form-text">
-                  {kodeUrl ? "Kode siswa tidak dapat diubah" : "Kode unik untuk siswa"}
-                </div>
               </div>
 
               {/* Input: Nama Siswa */}
@@ -138,7 +178,6 @@ export default function SiswaForm() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Masukkan nama lengkap siswa"
                   value={nama_siswa}
                   onChange={(e) => setNamaSiswa(e.target.value)}
                   required
@@ -149,60 +188,3 @@ export default function SiswaForm() {
               <div className="mb-3">
                 <label className="form-label">Alamat</label>
                 <textarea
-                  className="form-control"
-                  placeholder="Masukkan alamat siswa"
-                  rows="3"
-                  value={alamat_siswa}
-                  onChange={(e) => setAlamatSiswa(e.target.value)}
-                ></textarea>
-              </div>
-
-              {/* Input: Tanggal */}
-              <div className="mb-3">
-                <label className="form-label">Tanggal *</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={tanggal_siswa}
-                  onChange={(e) => setTanggalSiswa(e.target.value)}
-                  required
-                />
-              </div>
-
-              {/* Input: Jurusan */}
-              <div className="mb-3">
-                <label className="form-label">Jurusan *</label>
-                <select
-                  className="form-select"
-                  value={jurusan_siswa}
-                  onChange={(e) => setJurusanSiswa(e.target.value)}
-                  required
-                >
-                  <option value="">Pilih Jurusan</option>
-                  <option value="RPL">RPL (Rekayasa Perangkat Lunak)</option>
-                  <option value="TKJ">TKJ (Teknik Komputer dan Jaringan)</option>
-                  <option value="AKL">AKL (Akuntansi dan Keuangan Lembaga)</option>
-                  <option value="OTKP">OTKP (Otomatisasi dan Tata Kelola Perkantoran)</option>
-                </select>
-              </div>
-
-              {/* Tombol Aksi */}
-              <div className="d-flex gap-2">
-                <button type="submit" className="btn btn-success">
-                  {kodeUrl ? "💾 Update Data" : "➕ Tambah Data"}
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => navigate("/DataSiswa")} // Tombol kembali ke halaman daftar siswa
-                >
-                  ↩️ Kembali
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
